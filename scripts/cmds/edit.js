@@ -1,114 +1,63 @@
-const fs = require('fs');
-const path = require('path');
-const axios = require('axios');
-const { exec } = require('child_process');
-const ffmpeg = require('ffmpeg-static');
-
-const cacheFolder = path.join(__dirname, 'cache');
-
-if (!fs.existsSync(cacheFolder)) {
-  fs.mkdirSync(cacheFolder);
-}
+const apiUrl = "https://rexy-apis-p4x9.onrender.com";
+const axios = require("axios");
 
 module.exports = {
   config: {
     name: "edit",
-    version: "1.0",
-    author: "Vex_Kshitiz",
-    shortDescription: "edit the videosy",
-    longDescription: "edit the videos.",
-    category: "video",
-    guide: {
-      en: "{p}effect effectName value"
-    }
+    aliases: ["e"],
+    version: "1.6.9",
+    author: "Rexy",
+    role: 0,
+    description: "Edit image by URL or reply",
+    category: "ai",
+    countDown: 9,
+    guide: { en: "{pn} [url] [prompt] or reply to image & prompt" }
   },
-  onStart: async function ({ message, event, args, api }) {
+
+  onStart: async ({ message, event, args }) => {
+    let imgUrl, prompt = "";
+
+    // If user replied to an image
+    if (event.messageReply?.attachments?.[0]?.type === "photo") {
+      imgUrl = event.messageReply.attachments[0].url;
+      prompt = args.join(" ");
+    }
+
+    // If image URL is given directly
+    if (!imgUrl && args[0]) {
+      imgUrl = args[0];
+      prompt = args.slice(1).join(" ");
+    }
+
+    // If no image found
+    if (!imgUrl) {
+      return message.reply("• Reply to an image or provide image URL!\n• Add Prompt (for edit)");
+    }
+
+    // React and send processing message
+    message.reaction("⏳", event.messageID);
+    const wm = await message.reply("⏳ Editing your image... Please wait!");
+
     try {
-      if (args.length < 2) {
-        return message.reply("❌ || Invalid usage. Use {p}effect effectName value");
-      }
+      // Request API
+      const res = await axios.get(
+        `${apiUrl}/api/edit?imgUrl=${encodeURIComponent(imgUrl)}&prompt=${encodeURIComponent(prompt)}`,
+        { responseType: "stream" }
+      );
 
-      const effect = args[0].toLowerCase();
-      const param = parseFloat(args[1]);
-
-      const validEffects = ["brightness", "contrast", "saturation", "blur", "sharpen", "noise", "scale", "crop", "rotate", "flip"];
-      if (!validEffects.includes(effect)) {
-        return message.reply("❌ || Invalid effect. Available effects: " + validEffects.join(", "));
-      }
-
-      if (!event.messageReply || !event.messageReply.attachments || event.messageReply.attachments.length !== 1 || event.messageReply.attachments[0].type !== "video") {
-        return message.reply("❌ || Reply to a video to apply effects.");
-      }
-
-      const videoUrl = event.messageReply.attachments[0].url;
-
-      const inputFileName = `${Date.now()}_input.mp4`;
-      const outputFileName = `${Date.now()}_output.mp4`;
-      const inputFilePath = path.join(cacheFolder, inputFileName);
-      const outputFilePath = path.join(cacheFolder, outputFileName);
-
-      const writer = fs.createWriteStream(inputFilePath);
-      const response = await axios.get(videoUrl, { responseType: 'stream' });
-      response.data.pipe(writer);
-
-      await new Promise((resolve, reject) => {
-        writer.on('finish', resolve);
-        writer.on('error', reject);
+      // Success
+      message.reaction("✅", event.messageID);
+      await message.unsend(wm.messageID);
+      message.reply({ 
+        body: "✅ Here's your edited image!", 
+        attachment: res.data 
       });
 
-      let ffmpegCommand = ['-i', inputFilePath];
-      switch (effect) {
-        case "brightness":
-          ffmpegCommand.push('-vf', `eq=brightness=${param}`);
-          break;
-        case "contrast":
-          ffmpegCommand.push('-vf', `eq=contrast=${param}`);
-          break;
-        case "saturation":
-          ffmpegCommand.push('-vf', `eq=saturation=${param}`);
-          break;
-        case "blur":
-          ffmpegCommand.push('-vf', `boxblur=${param}`);
-          break;
-        case "sharpen":
-          ffmpegCommand.push('-vf', `unsharp=5:5:${param}:5:5:5`);
-          break;
-        case "noise":
-          ffmpegCommand.push('-vf', `hqdn3d=${param}`);
-          break;
-        case "scale":
-          ffmpegCommand.push('-vf', `scale=${param}`);
-          break;
-        case "crop":
-          ffmpegCommand.push('-vf', `crop=${param}`);
-          break;
-        case "rotate":
-          ffmpegCommand.push('-vf', `rotate=${param}`);
-          break;
-        case "flip":
-          ffmpegCommand.push('-vf', `hflip,vflip`);
-          break;
-        default:
-          break;
-      }
-      ffmpegCommand.push(outputFilePath);
-
-      exec(`${ffmpeg} ${ffmpegCommand.join(' ')}`, (error, stdout, stderr) => {
-        if (error) {
-          console.error("FFmpeg error:", error);
-          message.reply("❌ || An error occurred during video editing.");
-          return;
-        }
-        console.log("FFmpeg output:", stdout);
-        console.error("FFmpeg stderr:", stderr);
-
-        message.reply({
-          attachment: fs.createReadStream(outputFilePath)
-        });
-      });
     } catch (error) {
-      console.error("Error:", error);
-      message.reply("❌ || An error occurred.");
+      // Failure
+      message.reaction("❌", event.messageID);
+      await message.unsend(wm.messageID);
+      message.reply(`❌ Error: ${error.message}`);
     }
   }
 };
