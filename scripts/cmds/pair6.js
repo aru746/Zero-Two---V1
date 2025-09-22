@@ -1,33 +1,31 @@
-const { loadImage, createCanvas } = require("canvas");
 const axios = require("axios");
 const fs = require("fs-extra");
+const { loadImage, createCanvas } = require("canvas");
 
 module.exports = {
   config: {
-    name: "pair",
-    aliases: ["pairr"],
-    version: "1.1",
-    author: "Ncs Pro + Arijit",
+    name: "pair6",
+    countDown: 10,
     role: 0,
-    countDown: 5,
     shortDescription: {
-      en: "auto pair a person"
+      en: "Get to know your partner",
     },
     longDescription: {
-      en: ""
+      en: "Know your destiny and know who you will complete your life with",
     },
     category: "love",
     guide: {
-      en: ""
+      en: "{pn}"
     }
   },
 
   onStart: async function ({ api, event, usersData }) {
-    let pathImg = __dirname + "/cache/background.png";
-    let pathAvt1 = __dirname + "/cache/Avtmot.png";
-    let pathAvt2 = __dirname + "/cache/Avthai.png";
 
-    // Unicode bold converter
+    let pathImg = __dirname + "/assets/background.png";
+    let pathAvt1 = __dirname + "/assets/any.png";
+    let pathAvt2 = __dirname + "/assets/avatar.png";
+
+    // Bold Unicode converter
     function toBoldUnicode(name) {
       const boldAlphabet = {
         "a": "𝐚","b": "𝐛","c": "𝐜","d": "𝐝","e": "𝐞","f": "𝐟","g": "𝐠","h": "𝐡","i": "𝐢","j": "𝐣",
@@ -47,7 +45,6 @@ module.exports = {
     var ThreadInfo = await api.getThreadInfo(event.threadID);
     var all = ThreadInfo.userInfo;
 
-    // detect gender properly
     let gender1 = null;
     for (let c of all) {
       if (c.id == id1) gender1 = c.gender;
@@ -56,13 +53,12 @@ module.exports = {
     const botID = api.getCurrentUserID();
     let ungvien = [];
 
+    // Only male ↔ female pairing
     if (gender1 == "FEMALE") {
-      // pick only male
       for (let u of all) {
         if (u.gender == "MALE" && u.id !== id1 && u.id !== botID) ungvien.push(u.id);
       }
     } else if (gender1 == "MALE") {
-      // pick only female
       for (let u of all) {
         if (u.gender == "FEMALE" && u.id !== id1 && u.id !== botID) ungvien.push(u.id);
       }
@@ -75,36 +71,33 @@ module.exports = {
     var id2 = ungvien[Math.floor(Math.random() * ungvien.length)];
     var name2 = await usersData.getName(id2);
 
-    // convert names to bold
     const styledName1 = toBoldUnicode(name1);
     const styledName2 = toBoldUnicode(name2);
 
     var rd1 = Math.floor(Math.random() * 100) + 1;
-    var cc = ["0", "-1", "99,99", "-99", "-100", "101", "0,01"];
+    var cc = ["0","-1","99,99","-99","-100","101","0,01"];
     var rd2 = cc[Math.floor(Math.random() * cc.length)];
-    var djtme = [`${rd1}`, `${rd1}`, `${rd1}`, `${rd1}`, `${rd1}`, `${rd2}`, `${rd1}`, `${rd1}`, `${rd1}`, `${rd1}`];
+    var djtme = [`${rd1}`,`${rd1}`,`${rd1}`,`${rd1}`,`${rd1}`,`${rd2}`,`${rd1}`,`${rd1}`,`${rd1}`,`${rd1}`];
     var tile = djtme[Math.floor(Math.random() * djtme.length)];
 
     var background = [
-      "https://i.postimg.cc/wjJ29HRB/background1.png",
-      "https://i.postimg.cc/zf4Pnshv/background2.png",
-      "https://i.postimg.cc/5tXRQ46D/background3.png",
+      "https://i.ibb.co/RBRLmRt/Pics-Art-05-14-10-47-00.jpg"
     ];
-    var rd = background[Math.floor(Math.random() * background.length)];
 
-    // avatars
     let getAvtmot = (
-      await axios.get(`https://graph.facebook.com/${id1}/picture?width=720&height=720&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`, { responseType: "arraybuffer" })
+      await axios.get(`https://graph.facebook.com/${id1}/picture?width=720&height=720&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`,
+      { responseType: "arraybuffer" })
     ).data;
     fs.writeFileSync(pathAvt1, Buffer.from(getAvtmot, "utf-8"));
 
     let getAvthai = (
-      await axios.get(`https://graph.facebook.com/${id2}/picture?width=720&height=720&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`, { responseType: "arraybuffer" })
+      await axios.get(`https://graph.facebook.com/${id2}/picture?width=720&height=720&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`,
+      { responseType: "arraybuffer" })
     ).data;
     fs.writeFileSync(pathAvt2, Buffer.from(getAvthai, "utf-8"));
 
     let getbackground = (
-      await axios.get(`${rd}`, { responseType: "arraybuffer" })
+      await axios.get(`${background}`, { responseType: "arraybuffer" })
     ).data;
     fs.writeFileSync(pathImg, Buffer.from(getbackground, "utf-8"));
 
@@ -113,27 +106,25 @@ module.exports = {
     let baseAvt2 = await loadImage(pathAvt2);
     let canvas = createCanvas(baseImage.width, baseImage.height);
     let ctx = canvas.getContext("2d");
-
     ctx.drawImage(baseImage, 0, 0, canvas.width, canvas.height);
-    ctx.drawImage(baseAvt1, 100, 150, 300, 300);
-    ctx.drawImage(baseAvt2, 900, 150, 300, 300);
+    ctx.drawImage(baseAvt1, 111, 175, 330, 330);
+    ctx.drawImage(baseAvt2, 1018, 173, 330, 330);
 
     const imageBuffer = canvas.toBuffer();
     fs.writeFileSync(pathImg, imageBuffer);
     fs.removeSync(pathAvt1);
     fs.removeSync(pathAvt2);
 
-    return api.sendMessage(
-      {
-        body: `🥰𝐒𝐮𝐜𝐜𝐞𝐬𝐬𝐟𝐮𝐥 𝐩𝐚𝐢𝐫𝐢𝐧𝐠\n• ${styledName1} 🎀\n• ${styledName2} 🎀\n\n💌 𝐖𝐢𝐬𝐡 𝐲𝐨𝐮 𝐭𝐰𝐨 𝐡𝐮𝐧𝐝𝐫𝐞𝐝 𝐲𝐞𝐚𝐫𝐬 𝐨𝐟 𝐡𝐚𝐩𝐩𝐢𝐧𝐞𝐬𝐬 💕\n\n𝐋𝐨𝐯𝐞 𝐩𝐞𝐫𝐜𝐞𝐧𝐭𝐚𝐠𝐞: ${tile}% 💙`,
-        mentions: [
-          { tag: name2, id: id2 }
-        ],
-        attachment: fs.createReadStream(pathImg),
-      },
-      event.threadID,
-      () => fs.unlinkSync(pathImg),
-      event.messageID
-    );
-  },
+    return api.sendMessage({
+      body: `💘 ─────────────── 💘\n\n✨ 𝐒𝐮𝐜𝐜𝐞𝐬𝐬𝐟𝐮𝐥 𝐏𝐚𝐢𝐫𝐢𝐧𝐠 ✨\n\n💑 ${styledName1} 💕 ${styledName2}\n\n💌 𝐃𝐞𝐬𝐭𝐢𝐧𝐲 𝐛𝐫𝐨𝐮𝐠𝐡𝐭 𝐲𝐨𝐮 𝐭𝐨𝐠𝐞𝐭𝐡𝐞𝐫 💌\n\n🔗 𝐋𝐨𝐯𝐞 𝐩𝐞𝐫𝐜𝐞𝐧𝐭𝐚𝐠𝐞: ${tile}%\n\n💘 ─────────────── 💘`,
+      mentions: [
+        { tag: name1, id: id1 },
+        { tag: name2, id: id2 }
+      ],
+      attachment: fs.createReadStream(pathImg)
+    },
+    event.threadID,
+    () => fs.unlinkSync(pathImg),
+    event.messageID);
+  }
 };

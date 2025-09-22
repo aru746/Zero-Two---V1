@@ -6,42 +6,50 @@ module.exports = {
     countDown: 5,
     role: 2,
     shortDescription: "Enable or disable antiout",
-    longDescription: "",
+    longDescription: "Prevent members from leaving the group by automatically re-adding them.",
     category: "box chat",
-    guide: "{pn} {{[on | off]}}",
+    guide: "{pn} [on | off]",
     envConfig: {
       deltaNext: 5
     }
   },
-  onStart: async function({ message, event, threadsData, args }) {
+
+  onStart: async function ({ message, event, threadsData, args }) {
     let antiout = await threadsData.get(event.threadID, "settings.antiout");
     if (antiout === undefined) {
-      await threadsData.set(event.threadID, true, "settings.antiout");
-      antiout = true;
+      await threadsData.set(event.threadID, false, "settings.antiout");
+      antiout = false;
     }
-    if (!["on", "off"].includes(args[0])) {
-      return message.reply("Please use 'on' or 'off' as an argument");
+
+    if (!args[0] || !["on", "off"].includes(args[0].toLowerCase())) {
+      return message.reply("⚙️ | Please use:\nantiout on → enable\nantiout off → disable");
     }
-    await threadsData.set(event.threadID, args[0] === "on", "settings.antiout");
-    return message.reply(`Antiout has been ${args[0] === "on" ? "enabled" : "disabled"}.`);
+
+    const newStatus = args[0].toLowerCase() === "on";
+    await threadsData.set(event.threadID, newStatus, "settings.antiout");
+
+    return message.reply(`✅ | Antiout has been ${newStatus ? "enabled" : "disabled"}.`);
   },
-  onEvent: async function({ api, event, threadsData }) {
+
+  onEvent: async function ({ api, event, threadsData }) {
     const antiout = await threadsData.get(event.threadID, "settings.antiout");
-    if (antiout && event.logMessageData && event.logMessageData.leftParticipantFbId) {
-      // A user has left the chat, get their user ID
+    if (!antiout) return;
+
+    if (event.logMessageType === "log:unsubscribe" && event.logMessageData?.leftParticipantFbId) {
       const userId = event.logMessageData.leftParticipantFbId;
 
-      // Check if the user is still in the chat
-      const threadInfo = await api.getThreadInfo(event.threadID);
-      const userIndex = threadInfo.participantIDs.indexOf(userId);
-      if (userIndex === -1) {
-        // The user is not in the chat, add them back
-        const addUser = await api.addUserToGroup(userId, event.threadID);
-        if (addUser) {
-          console.log(`Active antiout mode, ${userId} has been re-added to the group!`);
-        } else {
-          console.log(`> Unable to re-add members ${userId} to the group.`);
+      // Skip if bot leaves
+      if (userId === api.getCurrentUserID()) return;
+
+      try {
+        const threadInfo = await api.getThreadInfo(event.threadID);
+
+        if (!threadInfo.participantIDs.includes(userId)) {
+          await api.addUserToGroup(userId, event.threadID);
+          console.log(`🔄 Antiout active: ${userId} re-added to the group.`);
         }
+      } catch (err) {
+        console.log(`❌ Antiout error: Could not re-add ${userId} → ${err.message}`);
       }
     }
   }
